@@ -9,8 +9,8 @@ import (
 )
 
 type voting struct {
-	voted string `json:"voted"`
-	voter string `json:"voter"`
+	voted string   `json:"voted"`
+	voter []string `json:"voter"`
 }
 
 var finishedVoting = false
@@ -47,27 +47,39 @@ func reset(c *gin.Context) {
 }
 
 func appendVote(c *gin.Context) {
+	already_voted := false
 	vter := c.Query("voter")
 	vted := c.Query("voted")
 
-	present := isVotedPresent(vted)
-	if present > 0 {
-		v := votings[present-1].voter
-		v = v + ", " + vter
-
-		vot := voting{
-			voted: vted,
-			voter: v,
+	//if already voted
+	for _, v := range votings {
+		for _, w := range v.voter {
+			if w == vter {
+				already_voted = true
+				println("Already Voted")
+			}
 		}
-		remove(present - 1)
-		votings = append(votings, vot)
+	}
+	if !already_voted {
+		present := isVotedPresent(vted)
+		if present > 0 {
+			v := votings[present-1].voter
+			v = append(v, vter)
 
-	} else {
-		vot := voting{
-			voted: vted,
-			voter: vter,
+			vot := voting{
+				voted: vted,
+				voter: v,
+			}
+			remove(present - 1)
+			votings = append(votings, vot)
+		} else {
+			v := []string{vter}
+			vot := voting{
+				voted: vted,
+				voter: v,
+			}
+			votings = append(votings, vot)
 		}
-		votings = append(votings, vot)
 	}
 	checkFinish()
 	for _, v := range votings {
@@ -80,7 +92,6 @@ func appendVote(c *gin.Context) {
 func isVotedPresent(votedKey string) int {
 	for i, v := range votings {
 		i++
-		println("index: ", i)
 		if v.voted == votedKey {
 			return i
 		}
@@ -96,7 +107,7 @@ func remove(s int) {
 func checkFinish() {
 	count := 0
 	for _, v := range votings {
-		count += countWords(v.voter, ", ")
+		count += len(v.voter)
 	}
 	if count == 8 {
 		println("Finished")
